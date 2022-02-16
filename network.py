@@ -13,15 +13,17 @@ import random
 
 import numpy
 
-import utils
-
 
 class Network(object):
 
     def __init__(self, dimensions: list):
-        """``dimensions`` gives the size of each network layer in order, including the input and output layers. The
-        biases and weights for the network are initialized randomly using a Gaussian distribution with mean 0 and variance
-        1."""
+        """
+        Initialises the network's biases and weights, using random values drawn from the Gaussian distribution with
+        mean 0 and variance 1.
+
+          dimensions
+            The size of each network layer in order, including the input and output layers.
+        """
         non_input_layer_dimensions = dimensions[1:]
         non_output_layer_dimensions = dimensions[:-1]
 
@@ -31,10 +33,17 @@ class Network(object):
                         zip(non_output_layer_dimensions, non_input_layer_dimensions)]
 
     def train(self, training_data: list, epochs: int, batch_size: int, learning_rate: float, test_data: list = None):
-        """Train the network using gradient descent. ``training_data`` is a list of tuples ``(x, y)`` representing the
-        training inputs and the desired outputs. If ``test_data`` is provided then the network will be evaluated
-        against the test data after each epoch, and partial progress printed out. This is useful for tracking progress,
-        but slows things down substantially."""
+        """
+        Train the network using gradient descent.
+
+          training_data
+            A list of tuples where the first entry is an ndarray of the inputs, and the second entry is an ndarray of
+            the desired outputs.
+          test_data
+            A list of tuples where the first entry is an ndarray of the inputs, and the second entry is the expected int
+            output. If provided, used to print out the percentage of correct test cases after each epoch (this has a major
+            performance impact).
+        """
         for epoch in range(epochs):
             batches = self.__creates_batches(training_data, batch_size)
 
@@ -42,37 +51,39 @@ class Network(object):
                 self.__update_weights_and_biases(batch, learning_rate)
 
             if test_data:
-                print("Epoch {0} of {1}: {2}% correct.".format(epoch, epochs, self.__percentage_correct(test_data)))
+                print("Epoch {0} of {1}: {2}% correct.".format(epoch + 1, epochs, self.__percentage_correct(test_data)))
             else:
-                print("Epoch {0} of {1} complete.".format(epoch, epochs))
+                print("Epoch {0} of {1} complete.".format(epoch + 1, epochs))
 
-    # TODO - Provide a public method to classify an image.
+    # TODO - This is not generic enough. The full output neurons should be returned.
+    def classify(self, inputs: numpy.ndarray) -> numpy.ndarray:
+        """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
+        greatest activation)."""
+        return numpy.argmax(self.__output_activations(inputs))
 
     @staticmethod
     def __creates_batches(training_data, batch_size):
-        """Splits the ``training_data`` into random batches of size ``batch_size``. Has the side effect of shuffling the
-        training data."""
+        """
+        Splits ``training_data`` into random batches of size ``batch_size``.
+
+        Has the side effect of shuffling the training data.
+        """
         random.shuffle(training_data)
         batches = [training_data[batch_start_idx:batch_start_idx + batch_size] for batch_start_idx in
                    range(0, len(training_data), batch_size)]
         return batches
 
     def __percentage_correct(self, test_data: list):
-        """Return the share of test inputs for which the neural network outputs the correct result."""
-        test_results = [(self.__predicted_output(inputs), expected_output) for (inputs, expected_output) in test_data]
+        """Return the share of ``test_data`` for which the network outputs the correct result."""
+        test_results = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
         correct_predictions = sum(int(input_ == expected_output) for (input_, expected_output) in test_results)
         return correct_predictions / len(test_data) * 100
-
-    def __predicted_output(self, inputs: numpy.ndarray):
-        """Evaluates the network on the ``inputs`` and returns the index of whichever neuron in the final layer has the
-        highest activation."""
-        return numpy.argmax(self.__output_activations(inputs))
 
     def __output_activations(self, inputs: numpy.ndarray):
         """Evaluates the network for an input ndarray."""
         activations = inputs
         for b, w in zip(self.biases, self.weights):
-            activations = utils.sigmoid(numpy.dot(w, activations) + b)
+            activations = self.__sigmoid(numpy.dot(w, activations) + b)
         return activations
 
     def __update_weights_and_biases(self, batch: list, learning_rate: float):
@@ -87,6 +98,11 @@ class Network(object):
         self.weights = [w - (learning_rate / len(batch)) * nw for w, nw in zip(self.weights, nabla_w)]
         self.biases = [b - (learning_rate / len(batch)) * nb for b, nb in zip(self.biases, nabla_b)]
 
+    @staticmethod
+    def __sigmoid(z):
+        """The sigmoid function."""
+        return 1.0 / (1.0 + numpy.exp(-z))
+
     def __backprop(self, x, y):
         """Return a tuple ``(nabla_b, nabla_w)`` representing the gradient for the cost function C_x. ``nabla_b`` and
         ``nabla_w`` are layer-by-layer lists of numpy arrays, similar to ``self.biases`` and ``self.weights``."""
@@ -99,10 +115,10 @@ class Network(object):
         for b, w in zip(self.biases, self.weights):
             z = numpy.dot(w, activation) + b
             zs.append(z)
-            activation = utils.sigmoid(z)
+            activation = self.__sigmoid(z)
             activations.append(activation)
         # backward pass
-        delta = self.__cost_derivative(activations[-1], y) * utils.derivative_of_sigmoid(zs[-1])
+        delta = self.__cost_derivative(activations[-1], y) * self.__sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = numpy.dot(delta, activations[-2].transpose())
         # Note that the variable layer in the loop below is used a little differently to the notation in Chapter 2 of
@@ -111,7 +127,7 @@ class Network(object):
         # negative indices in lists.
         for layer in range(2, len(self.dimensions)):
             z = zs[-layer]
-            sp = utils.derivative_of_sigmoid(z)
+            sp = self.__sigmoid_prime(z)
             delta = numpy.dot(self.weights[-layer + 1].transpose(), delta) * sp
             nabla_b[-layer] = delta
             nabla_w[-layer] = numpy.dot(delta, activations[-layer - 1].transpose())
@@ -121,3 +137,7 @@ class Network(object):
     def __cost_derivative(output_activations, y):
         """Return the vector of partial derivatives partial C_x / partial a for the output activations."""
         return output_activations - y
+
+    def __sigmoid_prime(self, z):
+        """First derivative of the sigmoid function."""
+        return self.__sigmoid(z) * (1 - self.__sigmoid(z))
