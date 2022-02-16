@@ -41,8 +41,8 @@ class Network(object):
             the desired outputs.
           test_data
             A list of tuples where the first entry is an ndarray of the inputs, and the second entry is the expected int
-            output. If provided, used to print out the percentage of correct test cases after each epoch (this has a major
-            performance impact).
+            output. If provided, used to print out the percentage of correct test cases after each epoch (this has a
+            major performance impact).
         """
         for epoch in range(epochs):
             batches = self.__creates_batches(training_data, batch_size)
@@ -55,7 +55,6 @@ class Network(object):
             else:
                 print("Epoch {0} of {1} complete.".format(epoch + 1, epochs))
 
-    # TODO - This is not generic enough. The full output neurons should be returned.
     def classify(self, inputs: numpy.ndarray) -> numpy.ndarray:
         """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
         greatest activation)."""
@@ -100,7 +99,7 @@ class Network(object):
 
     @staticmethod
     def __sigmoid(z):
-        """The sigmoid function."""
+        """Computes the sigmoid of ``z``."""
         return 1.0 / (1.0 + numpy.exp(-z))
 
     def __backprop(self, x, y):
@@ -139,5 +138,5 @@ class Network(object):
         return output_activations - y
 
     def __sigmoid_prime(self, z):
-        """First derivative of the sigmoid function."""
+        """Computes the first derivative of the sigmoid of ``z``."""
         return self.__sigmoid(z) * (1 - self.__sigmoid(z))
