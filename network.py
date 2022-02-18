@@ -128,7 +128,7 @@ class Network:
                        for bias, updated_bias in zip(self.biases, total_cost_gradient.biases)]
 
     def __backprop(self, sample: Sample) -> CostGradient:
-        """Returns the gradient for the cost function C_x."""
+        """Returns the cost gradient for the current state of the network."""
         neuron = self.__forward_pass(sample.inputs)
         return self.__backward_pass(neuron, sample)
 
