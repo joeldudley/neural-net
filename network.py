@@ -15,23 +15,28 @@ import numpy
 
 
 class Sample:
-    # TODO - Describe class.
+    """A training sample's inputs and expected outputs."""
 
-    def __init__(self, inputs: numpy.ndarray, outputs: numpy.ndarray):
+    def __init__(self, inputs: numpy.ndarray, expected_outputs: numpy.ndarray):
         self.inputs = inputs
         # The annotated outputs for the given inputs.
-        self.outputs = outputs
+        self.expected_outputs = expected_outputs
 
 
 class CostGradient:
-    # TODO - Describe class.
+    """The weights and biases of a cost gradient."""
 
     def __init__(self, biases: list[numpy.ndarray], weights: list[numpy.ndarray]):
         self.biases = biases
         self.weights = weights
 
 
-# TODO - Better type hints.
+class Neurons:
+    """The activations and pre-activations of the neurons in a network."""
+
+    def __init__(self, activations: list[numpy.ndarray], pre_activations: list[numpy.ndarray]):
+        self.activations = activations
+        self.pre_activations = pre_activations
 
 
 class Network:
@@ -52,13 +57,8 @@ class Network:
         self.weights = [numpy.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(non_output_layer_dimensions, non_input_layer_dimensions)]
 
-    def train(self, training_data: list, epochs: int, batch_size: int, learning_rate: float):
-        """
-        Train the network using gradient descent.
-
-          training_data
-            A list of ``Sample``s.
-        """
+    def train(self, training_data: list[Sample], epochs: int, batch_size: int, learning_rate: float):
+        """Train the network using gradient descent."""
         for epoch in range(epochs):
             batches = self.__creates_batches(training_data, batch_size)
 
@@ -72,8 +72,8 @@ class Network:
         greatest activation)."""
         return numpy.argmax(self.__output_activations(inputs))
 
-    def train_and_report_progress(self, training_data: list, epochs: int, batch_size: int, learning_rate: float,
-                                  test_data: list):
+    def train_and_report_progress(self, training_data: list[Sample], epochs: int, batch_size: int,
+                                  learning_rate: float, test_data: list[numpy.ndarray]):
         """Trains the network. After each epoch, reports the share of ``test_data`` for which the network outputs the
         correct result."""
         for epoch in range(epochs):
@@ -86,7 +86,7 @@ class Network:
             print("Epoch {0} of {1}: {2}% correct.".format(epoch + 1, epochs, percentage_correct))
 
     @staticmethod
-    def __creates_batches(training_data, batch_size):
+    def __creates_batches(training_data: list[Sample], batch_size: int) -> list[list[Sample]]:
         """
         Splits ``training_data`` into random batches of size ``batch_size``.
 
@@ -97,7 +97,7 @@ class Network:
                    range(0, len(training_data), batch_size)]
         return batches
 
-    def __output_activations(self, inputs: numpy.ndarray):
+    def __output_activations(self, inputs: numpy.ndarray) -> numpy.ndarray:
         """Evaluates the network for an input ndarray."""
         activations = inputs
         for b, w in zip(self.biases, self.weights):
@@ -129,54 +129,51 @@ class Network:
 
     def __backprop(self, sample: Sample) -> CostGradient:
         """Returns the gradient for the cost function C_x."""
-        pre_activations, activations = self.__forward_pass(sample.inputs)
-        return self.__backward_pass(pre_activations, activations, sample)
+        neuron = self.__forward_pass(sample.inputs)
+        return self.__backward_pass(neuron, sample)
 
-    def __forward_pass(self, inputs) -> (list, list):
+    def __forward_pass(self, inputs: numpy.ndarray) -> Neurons:
         """Calculates the pre-activations and activations of each neuron in the network for the given ``inputs``."""
         current_activation = inputs
-        # The activations for each layer of the network.
-        activations = [inputs]
-        # The pre-activations (i.e. the neuron values before the activation function is applied) for each layer of the
-        # network.
-        pre_activations = []
+        neuron = Neurons([inputs], [])
 
         for biases, weights in zip(self.biases, self.weights):
             activation_input = numpy.dot(weights, current_activation) + biases
-            pre_activations.append(activation_input)
+            neuron.pre_activations.append(activation_input)
             current_activation = self.__activation(activation_input)
-            activations.append(current_activation)
+            neuron.activations.append(current_activation)
 
-        return pre_activations, activations
+        return neuron
 
-    def __backward_pass(self, pre_activations, activations, sample) -> CostGradient:
-        # TODO - Describe. Need to analyse chapter 2 to understand backprop.
+    def __backward_pass(self, neuron: Neurons, sample: Sample) -> CostGradient:
+        # TODO - Describe. Need to read chapter 2 to understand backprop.
         cost_gradient = CostGradient(
             [numpy.zeros(biases.shape) for biases in self.biases],
             [numpy.zeros(weights.shape) for weights in self.weights]
         )
 
-        output_gap = activations[-1] - sample.outputs
-        delta = output_gap * self.__activation_prime(pre_activations[-1])
-        cost_gradient.biases[-1] = delta
-        cost_gradient.weights[-1] = numpy.dot(delta, activations[-2].transpose())
+        # We calculate the cost gradient for the final layer.
+        output_gap = neuron.activations[-1] - sample.expected_outputs
+        cost_gradient.biases[-1] = output_gap * self.__activation_prime(neuron.pre_activations[-1])
+        cost_gradient.weights[-1] = numpy.dot(cost_gradient.biases[-1], neuron.activations[-2].transpose())
 
-        for layer in range(2, len(self.dimensions)):
-            pre_activation = pre_activations[-layer]
-            sp = self.__activation_prime(pre_activation)
-            delta = numpy.dot(self.weights[-layer + 1].transpose(), delta) * sp
-            cost_gradient.biases[-layer] = delta
-            cost_gradient.weights[-layer] = numpy.dot(delta, activations[-layer - 1].transpose())
+        # We calculate the cost gradient for the other layers.
+        for layer in range(-2, -len(self.dimensions), -1):
+            activation_prime = self.__activation_prime(neuron.pre_activations[layer])
+            cost_gradient.biases[layer] = numpy.dot(self.weights[layer + 1].transpose(),
+                                                    cost_gradient.biases[layer + 1]) * activation_prime
+            cost_gradient.weights[layer] = numpy.dot(cost_gradient.biases[layer],
+                                                     neuron.activations[layer - 1].transpose())
 
         return cost_gradient
 
     @staticmethod
-    def __activation(x):
+    def __activation(x: numpy.ndarray) -> numpy.ndarray:
         """Computes the activation function for ``x``."""
         # We use the sigmoid function as our activation function.
         return 1.0 / (1.0 + numpy.exp(-x))
 
-    def __activation_prime(self, x):
+    def __activation_prime(self, x: numpy.ndarray) -> numpy.ndarray:
         """Computes the first derivative of the activation function for ``x``."""
         sigmoid_x = self.__activation(x)
         return sigmoid_x * (1 - sigmoid_x)
