@@ -13,12 +13,30 @@ import random
 
 import numpy
 
-from sample import Sample
+
+class Sample:
+    # TODO - Describe class.
+
+    def __init__(self, inputs: numpy.ndarray, outputs: numpy.ndarray):
+        self.inputs = inputs
+        # The annotated outputs for the given inputs.
+        self.outputs = outputs
+
+
+class CostGradient:
+    # TODO - Describe class.
+
+    def __init__(self, biases: list[numpy.ndarray], weights: list[numpy.ndarray]):
+        self.biases = biases
+        self.weights = weights
+
+
+# TODO - Better type hints.
 
 
 class Network:
 
-    def __init__(self, dimensions: list):
+    def __init__(self, dimensions: list[int]):
         """
         Initialises the network's biases and weights, using random values drawn from the Gaussian distribution with
         mean 0 and variance 1.
@@ -86,44 +104,33 @@ class Network:
             activations = self.__activation(numpy.dot(w, activations) + b)
         return activations
 
-    def __update_weights_and_biases(self, batch: list, learning_rate: float):
+    def __update_weights_and_biases(self, batch: list[Sample], learning_rate: float):
         """Update the network's weights and biases by applying gradient descent using backpropagation to a single batch.
-        The ``batch`` is a list of ``Sample``s."""
-        nabla_b = [numpy.zeros(bias.shape) for bias in self.biases]
-        nabla_w = [numpy.zeros(weight.shape) for weight in self.weights]
+        """
+        adjusted_learning_rate = learning_rate / len(batch)
+
+        total_cost_gradient = CostGradient(
+            [numpy.zeros(bias.shape) for bias in self.biases],
+            [numpy.zeros(weight.shape) for weight in self.weights]
+        )
         for sample in batch:
-            delta_nabla_b, delta_nabla_w = self.__backprop(sample)
-            nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
-        self.weights = [w - (learning_rate / len(batch)) * nw for w, nw in zip(self.weights, nabla_w)]
-        self.biases = [b - (learning_rate / len(batch)) * nb for b, nb in zip(self.biases, nabla_b)]
+            batch_cost_gradient = self.__backprop(sample)
+            total_cost_gradient.biases = [total_bias_cost_gradient + batch_bias_cost_gradient
+                                          for total_bias_cost_gradient, batch_bias_cost_gradient
+                                          in zip(total_cost_gradient.biases, batch_cost_gradient.biases)]
+            total_cost_gradient.weights = [total_weight_cost_gradient + batch_weight_cost_gradient
+                                           for total_weight_cost_gradient, batch_weight_cost_gradient
+                                           in zip(total_cost_gradient.weights, batch_cost_gradient.weights)]
 
-    def __backprop(self, sample: Sample):
-        """Return a tuple ``(nabla_b, nabla_w)`` representing the gradient for the cost function C_x. ``nabla_b`` and
-        ``nabla_w`` are layer-by-layer lists of numpy arrays, similar to ``self.biases`` and ``self.weights``."""
-        nabla_b = [numpy.zeros(biases.shape) for biases in self.biases]
-        nabla_w = [numpy.zeros(weights.shape) for weights in self.weights]
+        self.weights = [weight - adjusted_learning_rate * updated_weight
+                        for weight, updated_weight in zip(self.weights, total_cost_gradient.weights)]
+        self.biases = [bias - adjusted_learning_rate * updated_bias
+                       for bias, updated_bias in zip(self.biases, total_cost_gradient.biases)]
 
-        activation_inputs, activations = self.__forward_pass(sample.inputs)
-
-        # TODO - Extract into method.
-        # backward pass
-        delta = self.__cost_derivative(activations[-1], sample.outputs) * self.__activation_prime(
-            activation_inputs[-1])
-        nabla_b[-1] = delta
-        nabla_w[-1] = numpy.dot(delta, activations[-2].transpose())
-        # Note that the variable layer in the loop below is used a little differently to the notation in Chapter 2 of
-        # the book. Here, layer = 1 means the last layer of neurons, layer = 2 is the second-last layer, and so on.
-        # It's a renumbering of the scheme in the book, used here to take advantage of the fact that Python can use
-        # negative indices in lists.
-        for layer in range(2, len(self.dimensions)):
-            activation_input = activation_inputs[-layer]
-            sp = self.__activation_prime(activation_input)
-            delta = numpy.dot(self.weights[-layer + 1].transpose(), delta) * sp
-            nabla_b[-layer] = delta
-            nabla_w[-layer] = numpy.dot(delta, activations[-layer - 1].transpose())
-
-        return nabla_b, nabla_w
+    def __backprop(self, sample: Sample) -> CostGradient:
+        """Returns the gradient for the cost function C_x."""
+        pre_activations, activations = self.__forward_pass(sample.inputs)
+        return self.__backward_pass(pre_activations, activations, sample)
 
     def __forward_pass(self, inputs) -> (list, list):
         """Calculates the pre-activations and activations of each neuron in the network for the given ``inputs``."""
@@ -142,16 +149,34 @@ class Network:
 
         return pre_activations, activations
 
-    @staticmethod
-    def __cost_derivative(output_activations, y):
-        """Return the vector of partial derivatives partial C_x / partial a for the output activations."""
-        return output_activations - y
+    def __backward_pass(self, pre_activations, activations, sample) -> CostGradient:
+        # TODO - Describe. Need to analyse chapter 2 to understand backprop.
+        cost_gradient = CostGradient(
+            [numpy.zeros(biases.shape) for biases in self.biases],
+            [numpy.zeros(weights.shape) for weights in self.weights]
+        )
+
+        output_gap = activations[-1] - sample.outputs
+        delta = output_gap * self.__activation_prime(pre_activations[-1])
+        cost_gradient.biases[-1] = delta
+        cost_gradient.weights[-1] = numpy.dot(delta, activations[-2].transpose())
+
+        for layer in range(2, len(self.dimensions)):
+            pre_activation = pre_activations[-layer]
+            sp = self.__activation_prime(pre_activation)
+            delta = numpy.dot(self.weights[-layer + 1].transpose(), delta) * sp
+            cost_gradient.biases[-layer] = delta
+            cost_gradient.weights[-layer] = numpy.dot(delta, activations[-layer - 1].transpose())
+
+        return cost_gradient
 
     @staticmethod
-    def __activation(z):
-        """Computes the activation function for ``z`` (in this case, the sigmoid function)."""
-        return 1.0 / (1.0 + numpy.exp(-z))
+    def __activation(x):
+        """Computes the activation function for ``x``."""
+        # We use the sigmoid function as our activation function.
+        return 1.0 / (1.0 + numpy.exp(-x))
 
-    def __activation_prime(self, z):
-        """Computes the first derivative of the activation function for ``z``."""
-        return self.__activation(z) * (1 - self.__activation(z))
+    def __activation_prime(self, x):
+        """Computes the first derivative of the activation function for ``x``."""
+        sigmoid_x = self.__activation(x)
+        return sigmoid_x * (1 - sigmoid_x)
