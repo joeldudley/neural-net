@@ -11,7 +11,7 @@ import pickle
 
 import numpy as np
 
-from network import Sample
+from data_class import Sample
 
 
 def load_data():
