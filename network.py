@@ -78,8 +78,35 @@ class Network:
 
         return batch_gradient
 
+    def __update_weights_and_biases(self, batch_gradient: NetworkGradient, learning_rate: float):
+        """Update the network's weights and biases using the ``batch_gradient``."""
+        self.weights = [layer_weights - (learning_rate * layer_weight_gradient)
+                        for layer_weights, layer_weight_gradient in zip(self.weights, batch_gradient.weights)]
+        self.biases = [layer_biases - (learning_rate * layer_biases_gradient)
+                       for layer_biases, layer_biases_gradient in zip(self.biases, batch_gradient.biases)]
+
+    def __percentage_correct(self, test_data):
+        """Returns the percentage of ``test_data`` that is correctly classified by the network."""
+        test_predictions = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
+        correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
+        return sum(correct_predictions) / len(test_data) * 100
+
+    def __calculate_neuron_state(self, inputs: numpy.ndarray) -> NeuronState:
+        """Calculates the inputs and outputs of each neuron in the network for the given ``inputs``."""
+        neuron_state = NeuronState([], [inputs])
+
+        for layer_biases, layer_weights in zip(self.biases, self.weights):
+            previous_layer_outputs = neuron_state.outputs[-1]
+            current_layer_inputs = numpy.dot(layer_weights, previous_layer_outputs) + layer_biases
+            neuron_state.inputs.append(current_layer_inputs)
+
+            current_layer_outputs = self.__sigmoid(current_layer_inputs)
+            neuron_state.outputs.append(current_layer_outputs)
+
+        return neuron_state
+
     def __calculate_sample_gradient(self, sample: Sample) -> NetworkGradient:
-        # TODO - Describe this method. Need to read chapter 2 to understand backprop.
+        """Calculates the network's gradient for the current ``sample``."""
         neuron_state = self.__calculate_neuron_state(sample.inputs)
 
         gradient = NetworkGradient([], [])
@@ -98,20 +125,6 @@ class Network:
 
         return gradient
 
-    def __calculate_neuron_state(self, inputs: numpy.ndarray) -> NeuronState:
-        """Calculates the inputs and outputs of each neuron in the network for the given ``inputs``."""
-        neuron_state = NeuronState([], [inputs])
-
-        for layer_biases, layer_weights in zip(self.biases, self.weights):
-            previous_layer_outputs = neuron_state.outputs[-1]
-            current_layer_inputs = numpy.dot(layer_weights, previous_layer_outputs) + layer_biases
-            neuron_state.inputs.append(current_layer_inputs)
-
-            current_layer_outputs = self.__sigmoid(current_layer_inputs)
-            neuron_state.outputs.append(current_layer_outputs)
-
-        return neuron_state
-
     @staticmethod
     def __sigmoid(x: numpy.ndarray) -> numpy.ndarray:
         """Applies the network's activation function, sigmoid(x)."""
@@ -125,11 +138,6 @@ class Network:
         layer_weight_gradient = numpy.dot(layer_bias_gradient, neuron_state.outputs[-2].transpose())
         return LayerGradient(layer_bias_gradient, layer_weight_gradient)
 
-    @staticmethod
-    def __cost_function_prime(neuron_state, sample) -> numpy.ndarray:
-        """The first derivative of the network's cost function, 1/2n * sum(||y(x) - a||^2)"""
-        return neuron_state.outputs[-1] - sample.expected_outputs
-
     def __layer_gradient(self, layer_idx: int, neuron_state: NeuronState,
                          next_layer_bias_gradient: numpy.ndarray) -> LayerGradient:
         """Calculates the gradient of a non-output layer."""
@@ -139,20 +147,12 @@ class Network:
         layer_weight_gradient = numpy.dot(layer_bias_gradient, neuron_state.outputs[layer_idx - 1].transpose())
         return LayerGradient(layer_bias_gradient, layer_weight_gradient)
 
+    @staticmethod
+    def __cost_function_prime(neuron_state, sample) -> numpy.ndarray:
+        """The first derivative of the network's cost function, 1/2n * sum(||y(x) - a||^2)"""
+        return neuron_state.outputs[-1] - sample.expected_outputs
+
     def __sigmoid_prime(self, x: numpy.ndarray) -> numpy.ndarray:
         """The first derivative of the network's activation function, sigmoid(x)'."""
         sigmoid_x = self.__sigmoid(x)
         return sigmoid_x * (1 - sigmoid_x)
-
-    def __update_weights_and_biases(self, batch_gradient: NetworkGradient, learning_rate: float):
-        """Update the network's weights and biases using the ``batch_gradient``."""
-        self.weights = [layer_weights - (learning_rate * layer_weight_gradient)
-                        for layer_weights, layer_weight_gradient in zip(self.weights, batch_gradient.weights)]
-        self.biases = [layer_biases - (learning_rate * layer_biases_gradient)
-                       for layer_biases, layer_biases_gradient in zip(self.biases, batch_gradient.biases)]
-
-    def __percentage_correct(self, test_data):
-        """Returns the percentage of ``test_data`` that is correctly classified by the network."""
-        test_predictions = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
-        correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
-        return sum(correct_predictions) / len(test_data) * 100
