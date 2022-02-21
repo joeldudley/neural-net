@@ -10,10 +10,18 @@ class Sample:
         self.expected_outputs = expected_outputs
 
 
-class CostGradient:
-    """The network's weights and biases cost gradient for a given sample or batch."""
+class NetworkGradient:
+    """The gradient for the network's weights and biases for a given sample or batch."""
 
     def __init__(self, biases: list[numpy.ndarray], weights: list[numpy.ndarray]):
+        self.biases = biases
+        self.weights = weights
+
+
+class LayerGradient:
+    """The gradient for a single layer's weights and biases for a given sample or batch."""
+
+    def __init__(self, biases: numpy.ndarray, weights: numpy.ndarray):
         self.biases = biases
         self.weights = weights
 
