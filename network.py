@@ -120,24 +120,24 @@ class Network:
 
     def __backprop(self, sample: Sample) -> CostGradient:
         """Returns the cost gradient for the current state of the network."""
-        neuron = self.__forward_pass(sample.inputs)
-        return self.__backward_pass(neuron, sample)
+        neuron_state = self.__forward_pass(sample.inputs)
+        return self.__backward_pass(neuron_state, sample)
 
     def __forward_pass(self, inputs: numpy.ndarray) -> NeuronState:
         """Calculates the pre-activations and activations of each neuron in the network for the given ``inputs``."""
         current_activation = inputs
-        neuron = NeuronState([inputs], [])
+        neuron_state = NeuronState([inputs], [])
 
         for biases, weights in zip(self.biases, self.weights):
             activation_input = numpy.dot(weights, current_activation) + biases
-            neuron.pre_activations.append(activation_input)
+            neuron_state.pre_activations.append(activation_input)
             current_activation = self.__activation(activation_input)
-            neuron.activations.append(current_activation)
+            neuron_state.activations.append(current_activation)
 
-        return neuron
+        return neuron_state
 
     # TODO - Rename to `calculate_batch_cost_gradient`, rename other to `calculate_total_cost_gradient`, maybe put them closer together.
-    def __backward_pass(self, neuron: NeuronState, sample: Sample) -> CostGradient:
+    def __backward_pass(self, neuron_state: NeuronState, sample: Sample) -> CostGradient:
         # TODO - Describe. Need to read chapter 2 to understand backprop.
         cost_gradient = CostGradient(
             [numpy.zeros(biases.shape) for biases in self.biases],
@@ -145,19 +145,23 @@ class Network:
         )
 
         # We calculate the cost gradient for the final layer.
-        output_gap = neuron.activations[-1] - sample.expected_outputs
-        cost_gradient.biases[-1] = output_gap * self.__activation_prime(neuron.pre_activations[-1])
-        cost_gradient.weights[-1] = numpy.dot(cost_gradient.biases[-1], neuron.activations[-2].transpose())
+        cost = self.__cost_function_prime(neuron_state, sample)
+        cost_gradient.biases[-1] = cost * self.__activation_prime(neuron_state.pre_activations[-1])
+        cost_gradient.weights[-1] = numpy.dot(cost_gradient.biases[-1], neuron_state.activations[-2].transpose())
 
         # We calculate the cost gradient for the other layers.
         for layer in range(-2, -len(self.dimensions), -1):
-            activation_prime = self.__activation_prime(neuron.pre_activations[layer])
+            activation_prime = self.__activation_prime(neuron_state.pre_activations[layer])
             cost_gradient.biases[layer] = numpy.dot(self.weights[layer + 1].transpose(),
                                                     cost_gradient.biases[layer + 1]) * activation_prime
             cost_gradient.weights[layer] = numpy.dot(cost_gradient.biases[layer],
-                                                     neuron.activations[layer - 1].transpose())
+                                                     neuron_state.activations[layer - 1].transpose())
 
         return cost_gradient
+
+    def __cost_function_prime(self, neuron_state, sample):
+        """The derivative of the network's cost function (1/2n * sum(||y(x) - a||^2))"""
+        return neuron_state.activations[-1] - sample.expected_outputs
 
     @staticmethod
     def __activation(x: numpy.ndarray) -> numpy.ndarray:
