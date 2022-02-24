@@ -18,7 +18,7 @@ class NetworkGradient:
         self.weights = weights
 
 
-class LayerGradient:
+class LayerGradients:
     """The gradient for a single layer's weights and biases for a given sample or batch."""
 
     def __init__(self, biases: numpy.ndarray, weights: numpy.ndarray):
@@ -26,9 +26,9 @@ class LayerGradient:
         self.weights = weights
 
 
-class NeuronState:
-    """The inputs and outputs of the neurons in a network for a given sample."""
+class NeuronValues:
+    """The weighted inputs and activations of the neurons in a network for a given sample."""
 
-    def __init__(self, inputs: list[numpy.ndarray], outputs: list[numpy.ndarray]):
-        self.outputs = outputs
+    def __init__(self, inputs: list[numpy.ndarray], activations: list[numpy.ndarray]):
+        self.activations = activations
         self.inputs = inputs
