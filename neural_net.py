@@ -1,13 +1,13 @@
-import random
+from typing import List
 
 import numpy
 
-from data_class import Sample, NetworkGradient, NeuronValues, LayerGradients
+from data_classes import Sample, NetworkGradient, NeuronValues, LayerGradients
 
 
 class Network:
 
-    def __init__(self, dimensions: list[int]):
+    def __init__(self, dimensions: List[int]):
         """
         Initialises the network's biases and weights randomly. The random values are drawn from the Gaussian
         distribution with mean 0 and variance 1. The biases are a list of ndarrays of dimensions [size(layer) x 1]. The
@@ -25,7 +25,7 @@ class Network:
         self.weights = [numpy.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-    def train(self, training_data: list[Sample], epochs: int, batch_size: int, learning_rate: float, test_data=None):
+    def train(self, training_data: List[Sample], epochs: int, batch_size: int, learning_rate: float, test_data=None):
         """Train the network's biases and weights using gradient descent."""
         scaled_learning_rate = learning_rate / batch_size
 
@@ -37,7 +37,7 @@ class Network:
                 self.__update_weights_and_biases(batch_gradient, scaled_learning_rate)
 
             if test_data:
-                percentage_correct = self.__percentage_correct(test_data)
+                percentage_correct = self.percentage_correct(test_data)
                 print("Epoch {0} of {1}: {2:.2f}% correct.".format(epoch + 1, epochs, percentage_correct))
             else:
                 print("Epoch {0} of {1} complete.".format(epoch + 1, epochs))
@@ -45,22 +45,29 @@ class Network:
     def classify(self, inputs: numpy.ndarray) -> numpy.ndarray:
         """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
         greatest activation)."""
-        output_layer_activations = self.__calculate_neuron_values(inputs).activations[-1]
+        output_layer_neuron_values = self.__calculate_neuron_values(inputs)
+        output_layer_activations = output_layer_neuron_values.activations[-1]
         return numpy.argmax(output_layer_activations)
 
+    def percentage_correct(self, test_data):
+        """Returns the percentage of ``test_data`` that is correctly classified by the network."""
+        test_predictions = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
+        correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
+        return sum(correct_predictions) / len(test_data) * 100
+
     @staticmethod
-    def __creates_batches(training_data: list[Sample], batch_size: int) -> list[list[Sample]]:
+    def __creates_batches(training_data: List[Sample], batch_size: int) -> List[List[Sample]]:
         """
         Splits ``training_data`` into random batches of size ``batch_size``.
 
         Has the side effect of shuffling the training data.
         """
-        random.shuffle(training_data)
+        numpy.random.shuffle(training_data)
         batches = [training_data[batch_start_idx:batch_start_idx + batch_size]
                    for batch_start_idx in range(0, len(training_data), batch_size)]
         return batches
 
-    def __calculate_batch_gradient(self, batch: list[Sample]) -> NetworkGradient:
+    def __calculate_batch_gradient(self, batch: List[Sample]) -> NetworkGradient:
         """Calculates the network's total gradient for the current ``batch``."""
         batch_gradient = NetworkGradient(
             [numpy.zeros(biases.shape) for biases in self.biases],
@@ -84,12 +91,6 @@ class Network:
                         for layer_weights, layer_weight_gradient in zip(self.weights, batch_gradient.weights)]
         self.biases = [layer_biases - (learning_rate * layer_biases_gradient)
                        for layer_biases, layer_biases_gradient in zip(self.biases, batch_gradient.biases)]
-
-    def __percentage_correct(self, test_data):
-        """Returns the percentage of ``test_data`` that is correctly classified by the network."""
-        test_predictions = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
-        correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
-        return sum(correct_predictions) / len(test_data) * 100
 
     def __calculate_neuron_values(self, inputs: numpy.ndarray) -> NeuronValues:
         """Calculates the inputs and outputs of each neuron in the network for the given ``inputs``."""

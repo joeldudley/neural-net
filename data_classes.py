@@ -1,4 +1,5 @@
 import numpy
+from typing import List
 
 
 class Sample:
@@ -13,7 +14,7 @@ class Sample:
 class NetworkGradient:
     """The gradient of the entire network's weights and biases for a given sample or batch."""
 
-    def __init__(self, biases: list[numpy.ndarray], weights: list[numpy.ndarray]):
+    def __init__(self, biases: List[numpy.ndarray], weights: List[numpy.ndarray]):
         self.biases = biases
         self.weights = weights
 
@@ -29,6 +30,6 @@ class LayerGradients:
 class NeuronValues:
     """The weighted inputs and activations of the entire network's neurons for a given sample."""
 
-    def __init__(self, inputs: list[numpy.ndarray], activations: list[numpy.ndarray]):
+    def __init__(self, inputs: List[numpy.ndarray], activations: List[numpy.ndarray]):
         self.activations = activations
         self.inputs = inputs
