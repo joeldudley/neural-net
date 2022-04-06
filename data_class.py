@@ -11,7 +11,7 @@ class Sample:
 
 
 class NetworkGradient:
-    """The gradient for the network's weights and biases for a given sample or batch."""
+    """The gradient of the entire network's weights and biases for a given sample or batch."""
 
     def __init__(self, biases: list[numpy.ndarray], weights: list[numpy.ndarray]):
         self.biases = biases
@@ -19,7 +19,7 @@ class NetworkGradient:
 
 
 class LayerGradients:
-    """The gradient for a single layer's weights and biases for a given sample or batch."""
+    """The gradient of a single layer's weights and biases for a given sample or batch."""
 
     def __init__(self, biases: numpy.ndarray, weights: numpy.ndarray):
         self.biases = biases
@@ -27,7 +27,7 @@ class LayerGradients:
 
 
 class NeuronValues:
-    """The weighted inputs and activations of the neurons in a network for a given sample."""
+    """The weighted inputs and activations of the entire network's neurons for a given sample."""
 
     def __init__(self, inputs: list[numpy.ndarray], activations: list[numpy.ndarray]):
         self.activations = activations
