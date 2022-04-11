@@ -25,7 +25,9 @@ class Network:
         self.weights = [numpy.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-    def train(self, training_data: List[Sample], epochs: int, batch_size: int, learning_rate: float, test_data=None):
+    # todo - don't expose `Sample` on the public API. Data classes should be internal
+    def train(self, training_data: List[Sample], epochs: int, batch_size: int, learning_rate: float,
+              test_data: List[Sample] = None):
         """Train the network's biases and weights using gradient descent."""
         scaled_learning_rate = learning_rate / batch_size
 
@@ -49,9 +51,9 @@ class Network:
         output_layer_activations = output_layer_neuron_values.activations[-1]
         return numpy.argmax(output_layer_activations)
 
-    def percentage_correct(self, test_data):
+    def percentage_correct(self, test_data: List[Sample]):
         """Returns the percentage of ``test_data`` that is correctly classified by the network."""
-        test_predictions = [(self.classify(inputs), expected_output) for (inputs, expected_output) in test_data]
+        test_predictions = [(self.classify(sample.inputs), sample.expected_outputs) for sample in test_data]
         correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
         return sum(correct_predictions) / len(test_data) * 100
 
@@ -141,7 +143,7 @@ class Network:
         activation_gradient = self.__activation_gradient(neuron_values.inputs[layer_idx])
 
         # The rate of change in the layer's cost for a change in the inputs (calculated as δ(cost)/δ(activation) *
-        # δ(activation)/δ(weighted_inputs). This indicates the rate at which we should change the biases, in order to
+        # δ(activation)/δ(weighted_inputs)). This indicates the rate at which we should change the biases, in order to
         # change the inputs, in order to change the activations, in order to change the cost.
         bias_gradient = cost_gradient * activation_gradient
         # The rate of change in the layer's cost for a change in the previous layer's activations. This indicates the
@@ -151,7 +153,7 @@ class Network:
         return LayerGradients(bias_gradient, weight_gradient)
 
     @staticmethod
-    def __network_cost_gradient(neuron_values, sample) -> numpy.ndarray:
+    def __network_cost_gradient(neuron_values: NeuronValues, sample: Sample) -> numpy.ndarray:
         """The change in the cost function for a change in the output layer activations (i.e. the first derivative of
         the network's cost function, 1/2n * sum(||y(x) - a||^2))."""
         return neuron_values.activations[-1] - sample.expected_outputs
@@ -165,6 +167,6 @@ class Network:
 
     def __activation_gradient(self, x: numpy.ndarray) -> numpy.ndarray:
         """The change in a neuron's activation for a change in its weighted inputs (i.e. the first derivative of the
-        network's activation function, sigmoid(x)."""
+        network's activation function, sigmoid(x))."""
         sigmoid_x = self.__sigmoid(x)
         return sigmoid_x * (1 - sigmoid_x)
