@@ -7,7 +7,7 @@ from data_classes import Sample, NetworkGradient, NeuronValues, LayerGradients
 
 class Network:
 
-    def __init__(self, dimensions: List[int]):
+    def __init__(self, dimensions: List[int]) -> None:
         """
         Initialises the network's biases and weights randomly. The random values are drawn from the Gaussian
         distribution with mean 0 and variance 1. The biases are a list of ndarrays of dimensions [size(layer) x 1]. The
@@ -25,21 +25,22 @@ class Network:
         self.weights = [numpy.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-    # todo - don't expose `Sample` on the public API. Data classes should be internal
-    def train(self, training_data: List[Sample], epochs: int, batch_size: int, learning_rate: float,
-              test_data: List[Sample] = None):
+    def train(self, inputs: numpy.ndarray, expected_outputs: numpy.ndarray, epochs: int, batch_size: int,
+              learning_rate: float, test_inputs: numpy.ndarray = None, test_outputs: numpy.ndarray = None) -> None:
         """Train the network's biases and weights using gradient descent."""
+        samples = [Sample(input_, output) for input_, output in zip(inputs, expected_outputs)]
+        test_samples = [Sample(input_, output) for input_, output in zip(test_inputs, test_outputs)]
         scaled_learning_rate = learning_rate / batch_size
 
         for epoch in range(epochs):
-            batches = self.__creates_batches(training_data, batch_size)
+            batches = self.__creates_batches(samples, batch_size)
 
             for batch in batches:
                 batch_gradient = self.__calculate_batch_gradient(batch)
                 self.__update_weights_and_biases(batch_gradient, scaled_learning_rate)
 
-            if test_data:
-                percentage_correct = self.percentage_correct(test_data)
+            if test_samples:
+                percentage_correct = self.percentage_correct(test_inputs, test_outputs)
                 print("Epoch {0} of {1}: {2:.2f}% correct.".format(epoch + 1, epochs, percentage_correct))
             else:
                 print("Epoch {0} of {1} complete.".format(epoch + 1, epochs))
@@ -51,11 +52,12 @@ class Network:
         output_layer_activations = output_layer_neuron_values.activations[-1]
         return numpy.argmax(output_layer_activations)
 
-    def percentage_correct(self, test_data: List[Sample]):
+    def percentage_correct(self, test_inputs: numpy.ndarray, test_outputs: numpy.ndarray) -> float:
         """Returns the percentage of ``test_data`` that is correctly classified by the network."""
-        test_predictions = [(self.classify(sample.inputs), sample.expected_outputs) for sample in test_data]
+        test_samples = [Sample(input_, output) for input_, output in zip(test_inputs, test_outputs)]
+        test_predictions = [(self.classify(sample.inputs), sample.expected_outputs) for sample in test_samples]
         correct_predictions = [int(input_ == expected_output) for (input_, expected_output) in test_predictions]
-        return sum(correct_predictions) / len(test_data) * 100
+        return sum(correct_predictions) / len(test_samples) * 100
 
     @staticmethod
     def __creates_batches(training_data: List[Sample], batch_size: int) -> List[List[Sample]]:
@@ -87,7 +89,7 @@ class Network:
 
         return batch_gradient
 
-    def __update_weights_and_biases(self, batch_gradient: NetworkGradient, learning_rate: float):
+    def __update_weights_and_biases(self, batch_gradient: NetworkGradient, learning_rate: float) -> None:
         """Update the network's weights and biases using the ``batch_gradient``."""
         self.weights = [layer_weights - (learning_rate * layer_weight_gradient)
                         for layer_weights, layer_weight_gradient in zip(self.weights, batch_gradient.weights)]
