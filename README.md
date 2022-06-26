@@ -1,14 +1,38 @@
 # Neural Net
 
-A from-scratch neural network library. Written in Python using [NumPy](https://numpy.org/).
+A feedforward neural network implementation. Written in Python using [NumPy](https://numpy.org/).
 
 ## Usage
+
+### Training
+
+Create and train a network using:
 
 ```bash
 net = neural_net.Network([input_layer_size, hidden_layer_one_size, ..., output_layer_size])
 net.train(training_inputs, training_outputs, epochs, batch_size, learning_rate, test_inputs, test_outputs)
-predicted_output = net.classify(test_inputs)
-percent_correct = net.percentage_correct(test_inputs, test_outputs)
+```
+
+Where `training_inputs` is a numpy ndarray of dimensions [training set size, input layer size, 1], and 
+`training_outputs` is a list of numpy ndarrays of dimensions [output layer size, 1].
+
+`test_inputs` and `test_outputs` are optional. If specified, they are used to evaluate and print the performance of the 
+network after each epoch.
+
+### Evaluation
+
+Evaluate the network against a test set:
+
+```bash
+net.percentage_correct(test_inputs, test_outputs)
+```
+
+### Classification
+
+Classify new samples using the trained network with:
+
+```bash
+net.classify(sample)
 ```
 
 ## Contributing

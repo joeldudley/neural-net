@@ -2,7 +2,7 @@ from typing import List
 
 import numpy
 
-from data_classes import Sample, NetworkGradient, NeuronValues, LayerGradients
+from data_classes import Sample, NetworkGradient, NeuronValues
 
 
 class Network:
@@ -25,7 +25,7 @@ class Network:
         self.weights = [numpy.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-    def train(self, inputs: numpy.ndarray, expected_outputs: numpy.ndarray, epochs: int, batch_size: int,
+    def train(self, inputs: numpy.ndarray, expected_outputs: List[numpy.ndarray], epochs: int, batch_size: int,
               learning_rate: float, test_inputs: numpy.ndarray = None, test_outputs: numpy.ndarray = None) -> None:
         """Train the network's biases and weights using gradient descent."""
         samples = [Sample(input_, output) for input_, output in zip(inputs, expected_outputs)]
@@ -117,48 +117,48 @@ class Network:
         gradient = NetworkGradient([], [])
 
         # We calculate the gradient for the final layer.
-        output_layer_cost_gradient = self.__network_cost_gradient(neuron_values, sample)
-        output_layer_gradients = self.__layer_gradients(-1, output_layer_cost_gradient, neuron_values)
-        gradient.biases.append(output_layer_gradients.biases)
-        gradient.weights.append(output_layer_gradients.weights)
+        output_layer_bias_gradient, output_layer_weight_gradient = self.__layer_bias_weight_gradient(
+            -1,
+            self.__output_layer_cost_gradient(neuron_values, sample),
+            neuron_values
+        )
+        gradient.biases.append(output_layer_bias_gradient)
+        gradient.weights.append(output_layer_weight_gradient)
 
-        # We calculate the gradient for the other layers.
-        for layer_idx in range(-2, -len(self.dimensions), -1):
-            next_layer_bias_gradient = gradient.biases[layer_idx + 1]
-            layer_cost_gradient = self.__layer_cost_gradient(layer_idx, next_layer_bias_gradient)
-            layer_gradients = self.__layer_gradients(layer_idx, layer_cost_gradient, neuron_values)
-            gradient.biases.insert(0, layer_gradients.biases)
-            gradient.weights.insert(0, layer_gradients.weights)
+        # We calculate the gradient for the hidden layers.
+        for hidden_layer_idx in range(-2, -len(self.dimensions), -1):
+            next_layer_bias_gradient = gradient.biases[hidden_layer_idx + 1]
+            hidden_layer_cost_gradient = self.__layer_cost_gradient(hidden_layer_idx, next_layer_bias_gradient)
+            hidden_layer_bias_gradient, hidden_layer_weight_gradient = self.__layer_bias_weight_gradient(
+                hidden_layer_idx,
+                hidden_layer_cost_gradient,
+                neuron_values)
+            gradient.biases.insert(0, hidden_layer_bias_gradient)
+            gradient.weights.insert(0, hidden_layer_weight_gradient)
 
         return gradient
 
     @staticmethod
-    def __sigmoid(x: numpy.ndarray) -> numpy.ndarray:
-        """Applies the network's activation function, sigmoid(x)."""
-        # We use the sigmoid function as our activation function.
-        return 1.0 / (1.0 + numpy.exp(-x))
+    def __output_layer_cost_gradient(neuron_values: NeuronValues, sample: Sample) -> numpy.ndarray:
+        """The rate of change in the cost function for a change in the output layer activations (i.e. the first
+        derivative of the network's cost function, 1/2n * sum(||y(x) - a||^2))."""
+        return neuron_values.activations[-1] - sample.expected_outputs
 
-    def __layer_gradients(self, layer_idx: int, cost_gradient: numpy.ndarray,
-                          neuron_values: NeuronValues) -> LayerGradients:
+    def __layer_bias_weight_gradient(self, layer_idx: int, cost_gradient: numpy.ndarray, neuron_values: NeuronValues) \
+            -> (numpy.ndarray, numpy.ndarray):
         """Calculates a layer's bias and weight gradients for backpropagation."""
         previous_layer_activations = neuron_values.activations[layer_idx - 1].transpose()
         activation_gradient = self.__activation_gradient(neuron_values.inputs[layer_idx])
 
-        # The rate of change in the layer's cost for a change in the inputs (calculated as δ(cost)/δ(activation) *
+        # The rate of change in the layer's cost for a change in the biases (calculated as δ(cost)/δ(activation) *
         # δ(activation)/δ(weighted_inputs)). This indicates the rate at which we should change the biases, in order to
         # change the inputs, in order to change the activations, in order to change the cost.
         bias_gradient = cost_gradient * activation_gradient
-        # The rate of change in the layer's cost for a change in the previous layer's activations. This indicates the
-        # rate at which we should change the weights, in order to change the inputs, in order to change the activations,
-        # in order to change the cost.
+        # The rate of change in the layer's cost for a change in the weights. This indicates the rate at which we
+        # should change the weights, in order to change the inputs, in order to change the activations, in order to
+        # change the cost.
         weight_gradient = numpy.dot(bias_gradient, previous_layer_activations)
-        return LayerGradients(bias_gradient, weight_gradient)
-
-    @staticmethod
-    def __network_cost_gradient(neuron_values: NeuronValues, sample: Sample) -> numpy.ndarray:
-        """The change in the cost function for a change in the output layer activations (i.e. the first derivative of
-        the network's cost function, 1/2n * sum(||y(x) - a||^2))."""
-        return neuron_values.activations[-1] - sample.expected_outputs
+        return bias_gradient, weight_gradient
 
     def __layer_cost_gradient(self, layer_idx: int, next_layer_bias_gradient: numpy.ndarray) -> numpy.ndarray:
         """The rate of change in the layer's cost for a change in the inputs. The layer's cost is defined as the next
@@ -167,8 +167,14 @@ class Network:
         next_layer_weights = self.weights[layer_idx + 1].transpose()
         return numpy.dot(next_layer_weights, next_layer_bias_gradient)
 
-    def __activation_gradient(self, x: numpy.ndarray) -> numpy.ndarray:
-        """The change in a neuron's activation for a change in its weighted inputs (i.e. the first derivative of the
-        network's activation function, sigmoid(x))."""
-        sigmoid_x = self.__sigmoid(x)
-        return sigmoid_x * (1 - sigmoid_x)
+    def __activation_gradient(self, inputs: numpy.ndarray) -> numpy.ndarray:
+        """The change in a layer's neurons' activations for a change in the weighted inputs (i.e. the first derivative
+        of the network's activation function, sigmoid(x))."""
+        sigmoid_inputs = self.__sigmoid(inputs)
+        return sigmoid_inputs * (1 - sigmoid_inputs)
+
+    @staticmethod
+    def __sigmoid(x: numpy.ndarray) -> numpy.ndarray:
+        """Applies the network's activation function, sigmoid(x)."""
+        # We use the sigmoid function as our activation function.
+        return 1.0 / (1.0 + numpy.exp(-x))

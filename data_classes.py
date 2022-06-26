@@ -19,13 +19,6 @@ class NetworkGradient:
 
 
 @dataclass
-class LayerGradients:
-    """The gradient of a single layer's weights and biases for a given sample or batch."""
-    biases: numpy.ndarray
-    weights: numpy.ndarray
-
-
-@dataclass
 class NeuronValues:
     """The weighted inputs and activations of the entire network's neurons for a given sample."""
     inputs: List[numpy.ndarray]
