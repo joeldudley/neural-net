@@ -2,8 +2,9 @@ from typing import List
 
 import numpy as n
 
-from cost_function import QuadraticCostFunction
+from cost_function import CrossEntropyCostFunction
 from data_classes import Sample, NetworkGradient
+from utils import sigmoid_prime, sigmoid
 
 OUTPUT_LAYER_IDX = -1  # The index of the output layer in the network's layers.
 
@@ -26,7 +27,7 @@ class Network:
         self.weights = [n.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
                         zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-        self.cost_function = QuadraticCostFunction()
+        self.cost_function = CrossEntropyCostFunction()
 
     def train(self, inputs: n.ndarray, expected_outputs: List[n.ndarray], epochs: int, batch_size: int,
               learning_rate: float, test_inputs: n.ndarray = None, test_outputs: n.ndarray = None) -> None:
@@ -91,7 +92,7 @@ class Network:
             current_layer_inputs = n.dot(layer_weights, previous_layer_activations) + layer_biases
             neuron_inputs.append(current_layer_inputs)
 
-            current_layer_activations = self.__sigmoid(current_layer_inputs)
+            current_layer_activations = sigmoid(current_layer_inputs)
             neuron_activations.append(current_layer_activations)
 
         return neuron_inputs, neuron_activations
@@ -143,9 +144,8 @@ class Network:
     def __output_layer_bias_gradient(self, neuron_activations: List[n.ndarray], expected_outputs: n.ndarray,
                                      neuron_inputs: List[n.ndarray]) -> n.ndarray:
         """The rate of change in the output layer's cost for a change in the biases."""
-        cost_gradient = self.cost_function.output_layer_cost_gradient(
-            neuron_activations[OUTPUT_LAYER_IDX], expected_outputs)
-        return self.__layer_bias_gradient(OUTPUT_LAYER_IDX, cost_gradient, neuron_inputs)
+        return self.cost_function.output_layer_cost_gradient(
+            neuron_activations[OUTPUT_LAYER_IDX], expected_outputs, neuron_inputs[OUTPUT_LAYER_IDX])
 
     def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: n.ndarray,
                                      neuron_inputs: List[n.ndarray]):
@@ -157,15 +157,11 @@ class Network:
 
         return self.__layer_bias_gradient(layer_idx, cost_gradient, neuron_inputs)
 
-    def __layer_bias_gradient(self, layer_idx: int, layer_cost_gradient: n.ndarray,
+    @staticmethod
+    def __layer_bias_gradient(layer_idx: int, layer_cost_gradient: n.ndarray,
                               neuron_inputs: List[n.ndarray]) -> n.ndarray:
         """The rate of change in a layer's cost for a change in the biases."""
-
-        # The rate of change in a layer's activations for a change in the inputs (i.e. the first derivative of the
-        # network's activation function, sigmoid(x)).
-        sigmoid_inputs = self.__sigmoid(neuron_inputs[layer_idx])
-        layer_input_gradient = sigmoid_inputs * (1 - sigmoid_inputs)
-
+        layer_input_gradient = sigmoid_prime(neuron_inputs[layer_idx])
         return layer_cost_gradient * layer_input_gradient
 
     @staticmethod
@@ -174,8 +170,3 @@ class Network:
         """The rate of change in a layer's cost for a change in the weights."""
         previous_layer_activations = neuron_activations[layer_idx - 1].transpose()
         return n.dot(bias_gradient, previous_layer_activations)
-
-    @staticmethod
-    def __sigmoid(x: n.ndarray) -> n.ndarray:
-        """Applies the sigmoid function elementwise."""
-        return 1.0 / (1.0 + n.exp(-x))
