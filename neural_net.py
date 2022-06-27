@@ -182,4 +182,4 @@ class Network:
     @staticmethod
     def __sigmoid(x: n.ndarray) -> n.ndarray:
         """Applies the sigmoid function elementwise."""
-        return 1.0 / (1.0 + numpy.exp(-x))
+        return 1.0 / (1.0 + n.exp(-x))
