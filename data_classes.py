@@ -19,7 +19,7 @@ class NetworkGradient:
 
 
 @dataclass
-class NeuronValues:
-    """The weighted inputs and activations of the entire network's neurons for a given sample."""
+class NeuronInputsAndActivations:
+    """The inputs and activations to each of the network's neurons for a given sample."""
     inputs: List[numpy.ndarray]
     activations: List[numpy.ndarray]
