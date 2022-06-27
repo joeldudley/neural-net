@@ -48,8 +48,8 @@ class Network:
     def classify(self, inputs: numpy.ndarray) -> numpy.ndarray:
         """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
         greatest activation)."""
-        output_layer_neuron_values = self.__calculate_neuron_values(inputs)
-        output_layer_activations = output_layer_neuron_values.activations[-1]
+        output_layer_neuron_inputs_and_activations = self.__neuron_inputs_and_activations(inputs)
+        output_layer_activations = output_layer_neuron_inputs_and_activations.activations[-1]
         return numpy.argmax(output_layer_activations)
 
     def percentage_correct(self, test_inputs: numpy.ndarray, test_outputs: numpy.ndarray) -> float:
@@ -96,7 +96,7 @@ class Network:
         self.biases = [layer_biases - (learning_rate * layer_biases_gradient)
                        for layer_biases, layer_biases_gradient in zip(self.biases, batch_gradient.biases)]
 
-    def __calculate_neuron_values(self, inputs: numpy.ndarray) -> NeuronInputsAndActivations:
+    def __neuron_inputs_and_activations(self, inputs: numpy.ndarray) -> NeuronInputsAndActivations:
         """Calculates the inputs and outputs of each neuron in the network for the given ``inputs``."""
         neuron_inputs_and_activations = NeuronInputsAndActivations([], [inputs])
 
@@ -113,13 +113,13 @@ class Network:
     def __calculate_sample_gradient(self, sample: Sample) -> NetworkGradient:
         """Calculates the network's gradient for the current ``sample``."""
         gradient = NetworkGradient([], [])
-        neuron_values = self.__calculate_neuron_values(sample.inputs)
+        neuron_inputs_and_activations = self.__neuron_inputs_and_activations(sample.inputs)
 
         # We calculate the bias and weight gradients for the output layer.
         output_layer_bias_gradient = self.__layer_bias_gradient(
-            -1, self.__output_layer_cost_gradient(neuron_values, sample), neuron_values)
+            -1, self.__output_layer_cost_gradient(neuron_inputs_and_activations, sample), neuron_inputs_and_activations)
         output_layer_weight_gradient = self.__layer_weight_gradient(
-            -1, output_layer_bias_gradient, neuron_values
+            -1, output_layer_bias_gradient, neuron_inputs_and_activations
         )
         gradient.biases.append(output_layer_bias_gradient)
         gradient.weights.append(output_layer_weight_gradient)
@@ -129,10 +129,10 @@ class Network:
             next_layer_bias_gradient = gradient.biases[hidden_layer_idx + 1]
             hidden_layer_cost_gradient = self.__hidden_layer_cost_gradient(hidden_layer_idx, next_layer_bias_gradient)
             hidden_layer_bias_gradient = self.__layer_bias_gradient(
-                hidden_layer_idx, hidden_layer_cost_gradient, neuron_values
+                hidden_layer_idx, hidden_layer_cost_gradient, neuron_inputs_and_activations
             )
             hidden_layer_weight_gradient = self.__layer_weight_gradient(
-                hidden_layer_idx, hidden_layer_bias_gradient, neuron_values
+                hidden_layer_idx, hidden_layer_bias_gradient, neuron_inputs_and_activations
             )
             gradient.biases.insert(0, hidden_layer_bias_gradient)
             gradient.weights.insert(0, hidden_layer_weight_gradient)
