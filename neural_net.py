@@ -4,6 +4,8 @@ import numpy
 
 from data_classes import Sample, NetworkGradient
 
+OUTPUT_LAYER_IDX = -1  # The index of the output layer in the network's layers.
+
 
 class Network:
 
@@ -49,7 +51,7 @@ class Network:
         """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
         greatest activation)."""
         neuron_inputs, neuron_activations = self.__calculate_neuron_inputs_and_activations(inputs)
-        output_layer_activations = neuron_activations[-1]
+        output_layer_activations = neuron_activations[OUTPUT_LAYER_IDX]
         return numpy.argmax(output_layer_activations)
 
     def percentage_correct(self, test_inputs: numpy.ndarray, test_outputs: numpy.ndarray) -> float:
@@ -118,20 +120,17 @@ class Network:
         neuron_inputs, neuron_activations = self.__calculate_neuron_inputs_and_activations(sample.inputs)
 
         # We calculate the bias and weight gradients for the output layer.
-        output_layer_bias_gradient = self.__layer_bias_gradient(
-            -1, self.__output_layer_cost_gradient(neuron_activations, sample), neuron_inputs)
-        output_layer_weight_gradient = self.__layer_weight_gradient(
-            -1, output_layer_bias_gradient, neuron_activations
-        )
+        output_layer_bias_gradient = self.__output_layer_bias_gradient(neuron_activations, sample.expected_outputs,
+                                                                       neuron_inputs)
+        output_layer_weight_gradient = self.__layer_weight_gradient(OUTPUT_LAYER_IDX, output_layer_bias_gradient,
+                                                                    neuron_activations)
         gradient.biases.append(output_layer_bias_gradient)
         gradient.weights.append(output_layer_weight_gradient)
 
-        # We calculate the bias and weight gradients for the hidden layers.
+        # We calculate the bias and weight gradients for the hidden layers, starting from the final hidden layer.
         for hidden_layer_idx in range(-2, -len(self.dimensions), -1):
-            next_layer_bias_gradient = gradient.biases[hidden_layer_idx + 1]
-            hidden_layer_cost_gradient = self.__hidden_layer_cost_gradient(hidden_layer_idx, next_layer_bias_gradient)
-            hidden_layer_bias_gradient = self.__layer_bias_gradient(
-                hidden_layer_idx, hidden_layer_cost_gradient, neuron_inputs
+            hidden_layer_bias_gradient = self.__hidden_layer_bias_gradient(
+                hidden_layer_idx, gradient.biases[hidden_layer_idx + 1], neuron_inputs
             )
             hidden_layer_weight_gradient = self.__layer_weight_gradient(
                 hidden_layer_idx, hidden_layer_bias_gradient, neuron_activations
@@ -141,12 +140,24 @@ class Network:
 
         return gradient
 
+    def __output_layer_bias_gradient(self, neuron_activations: List[numpy.ndarray], expected_outputs: numpy.ndarray,
+                                     neuron_inputs: List[numpy.ndarray]) -> numpy.ndarray:
+        """The rate of change in the output layer's cost for a change in the biases."""
+        cost_gradient = self.__output_layer_cost_gradient(neuron_activations, expected_outputs)
+        return self.__layer_bias_gradient(OUTPUT_LAYER_IDX, cost_gradient, neuron_inputs)
+
+    def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: numpy.ndarray,
+                                     neuron_inputs: List[numpy.ndarray]):
+        """The rate of change in a hidden layer's cost for a change in the biases."""
+        cost_gradient = self.__hidden_layer_cost_gradient(layer_idx, next_layer_bias_gradient)
+        return self.__layer_bias_gradient(layer_idx, cost_gradient, neuron_inputs)
+
     @staticmethod
-    def __output_layer_cost_gradient(neuron_activations: List[numpy.ndarray], sample: Sample) \
+    def __output_layer_cost_gradient(neuron_activations: List[numpy.ndarray], expected_outputs: numpy.ndarray) \
             -> numpy.ndarray:
         """The rate of change in the network's cost for a change in the output layer activations (i.e. the first
         derivative of the network's cost function, 1/2n * sum(||y(x) - a||^2))."""
-        return neuron_activations[-1] - sample.expected_outputs
+        return neuron_activations[OUTPUT_LAYER_IDX] - expected_outputs
 
     def __hidden_layer_cost_gradient(self, layer_idx: int, next_layer_bias_gradient: numpy.ndarray) -> numpy.ndarray:
         """The rate of change in the next layer's cost for a change in this layer's activations."""
