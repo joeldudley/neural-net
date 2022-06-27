@@ -10,14 +10,12 @@ OUTPUT_LAYER_IDX = -1  # The index of the output layer in the network's layers.
 class Network:
 
     def __init__(self, dimensions: List[int]) -> None:
-        """
-        Initialises the network's biases and weights randomly. The random values are drawn from the Gaussian
+        """Initialises the network's biases and weights randomly. The random values are drawn from the Gaussian
         distribution with mean 0 and variance 1. The biases are a list of ndarrays of dimensions [size(layer) x 1]. The
         weights are a list of ndarrays of dimensions [size(layer) x size(layer-1)].
 
           dimensions
-            The size of each network layer in order, including both the input and output layers.
-        """
+            The size of each network layer in order, including both the input and output layers."""
         self.dimensions = dimensions
 
         dimensions_excluding_inputs = dimensions[1:]
