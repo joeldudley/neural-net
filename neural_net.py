@@ -116,8 +116,9 @@ class Network:
         return batch_gradient
 
     def __calculate_sample_gradient(self, sample: Sample) -> NetworkGradient:
-        """Calculates the network's gradient for the current ``sample``."""
-        gradient = NetworkGradient([], [])
+        """Calculates the network's bias and weight gradients for the current ``sample``."""
+        bias_gradients = []
+        weight_gradients = []
         neuron_inputs, neuron_activations = self.__calculate_neuron_inputs_and_activations(sample.inputs)
 
         # We calculate the bias and weight gradients for the output layer.
@@ -125,48 +126,44 @@ class Network:
                                                                        neuron_inputs)
         output_layer_weight_gradient = self.__layer_weight_gradient(OUTPUT_LAYER_IDX, output_layer_bias_gradient,
                                                                     neuron_activations)
-        gradient.biases.append(output_layer_bias_gradient)
-        gradient.weights.append(output_layer_weight_gradient)
+        bias_gradients.append(output_layer_bias_gradient)
+        weight_gradients.append(output_layer_weight_gradient)
 
         # We calculate the bias and weight gradients for the hidden layers, starting from the final hidden layer.
         for hidden_layer_idx in range(-2, -len(self.dimensions), -1):
             hidden_layer_bias_gradient = self.__hidden_layer_bias_gradient(
-                hidden_layer_idx, gradient.biases[hidden_layer_idx + 1], neuron_inputs
+                hidden_layer_idx, bias_gradients[hidden_layer_idx + 1], neuron_inputs
             )
             hidden_layer_weight_gradient = self.__layer_weight_gradient(
                 hidden_layer_idx, hidden_layer_bias_gradient, neuron_activations
             )
-            gradient.biases.insert(0, hidden_layer_bias_gradient)
-            gradient.weights.insert(0, hidden_layer_weight_gradient)
+            bias_gradients.insert(0, hidden_layer_bias_gradient)
+            weight_gradients.insert(0, hidden_layer_weight_gradient)
 
-        return gradient
+        return NetworkGradient(bias_gradients, weight_gradients)
 
     def __output_layer_bias_gradient(self, neuron_activations: List[n.ndarray], expected_outputs: n.ndarray,
                                      neuron_inputs: List[n.ndarray]) -> n.ndarray:
-        """The rate of change in the output layer's cost for a change in the biases."""
-        return self.cost_function.output_layer_cost_gradient(
+        """The rate of change in the overall network cost for a change in the output layer's biases."""
+        return self.cost_function.output_layer_bias_gradient(
             neuron_activations[OUTPUT_LAYER_IDX], expected_outputs, neuron_inputs[OUTPUT_LAYER_IDX])
 
     def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: n.ndarray,
                                      neuron_inputs: List[n.ndarray]):
-        """The rate of change in a hidden layer's cost for a change in the biases."""
+        """The rate of change in the next layer's cost for a change in this layer's biases."""
 
         # The rate of change in the next layer's cost for a change in this layer's activations.
         next_layer_weights = self.weights[layer_idx + 1].transpose()
-        cost_gradient = n.dot(next_layer_weights, next_layer_bias_gradient)
+        cost_delta = n.dot(next_layer_weights, next_layer_bias_gradient)
 
-        return self.__layer_bias_gradient(layer_idx, cost_gradient, neuron_inputs)
+        # The rate of change in the layer's activations for a change in the inputs.
+        activation_delta = sigmoid_prime(neuron_inputs[layer_idx])
 
-    @staticmethod
-    def __layer_bias_gradient(layer_idx: int, layer_cost_gradient: n.ndarray,
-                              neuron_inputs: List[n.ndarray]) -> n.ndarray:
-        """The rate of change in a layer's cost for a change in the biases."""
-        layer_input_gradient = sigmoid_prime(neuron_inputs[layer_idx])
-        return layer_cost_gradient * layer_input_gradient
+        return cost_delta * activation_delta
 
     @staticmethod
     def __layer_weight_gradient(layer_idx: int, bias_gradient: n.ndarray,
                                 neuron_activations: List[n.ndarray]) -> n.ndarray:
-        """The rate of change in a layer's cost for a change in the weights."""
+        """The rate of change in the next layer's cost for a change in this layer's weights."""
         previous_layer_activations = neuron_activations[layer_idx - 1].transpose()
         return n.dot(bias_gradient, previous_layer_activations)
