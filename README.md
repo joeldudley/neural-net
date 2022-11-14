@@ -1,6 +1,6 @@
 # Neural Net
 
-A feedforward neural network implementation. Written in Python using [NumPy](https://numpy.org/).
+A from-scratch implementation of a feedforward neural network. Written in Python using [NumPy](https://numpy.org/).
 
 ## Usage
 
