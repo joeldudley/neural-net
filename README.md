@@ -1,8 +1,12 @@
 # Neural Net
 
-A from-scratch implementation of a feedforward neural network. Written in Python using [NumPy](https://numpy.org/).
+A from-scratch implementation of a feedforward neural network. Written in Python with [NumPy](https://numpy.org/).
 
 ## Usage
+
+### Try it out!
+
+Run [this test](tests/test.py) to train a neural net on the [MNIST database](https://en.wikipedia.org/wiki/MNIST_database).
 
 ### Training
 
