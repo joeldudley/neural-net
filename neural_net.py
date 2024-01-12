@@ -7,7 +7,7 @@ from cost_function import CrossEntropyCostFunction
 from data_classes import Sample, NetworkGradient
 from utils import sigmoid_prime, sigmoid
 
-OUTPUT_LAYER_IDX = -1  # The index of the output layer in the network's layers.
+OUTPUT_LAYER_IDX = -1
 
 
 class Network:
