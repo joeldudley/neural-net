@@ -59,6 +59,7 @@ class Network:
 
         Has the side effect of shuffling the training data.
         """
+        # todo - specify number of batches and select at random
         n.random.shuffle(training_data)
         return [training_data[batch_start_idx:batch_start_idx + batch_size]
                 for batch_start_idx in range(0, len(training_data), batch_size)]
