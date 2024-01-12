@@ -18,16 +18,16 @@ class Network:
 
           dimensions
             The size of each network layer in order, including both the input and output layers."""
-        self.dimensions = dimensions
+        self.__dimensions = dimensions
 
         dimensions_excluding_inputs = dimensions[1:]
         dimensions_excluding_outputs = dimensions[:-1]
 
-        self.biases = [n.random.randn(layer_size, 1) for layer_size in dimensions_excluding_inputs]
-        self.weights = [n.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
-                        zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
+        self.__biases = [n.random.randn(layer_size, 1) for layer_size in dimensions_excluding_inputs]
+        self.__weights = [n.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
+                          zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
 
-        self.cost_function = CrossEntropyCostFunction()
+        self.__cost_function = CrossEntropyCostFunction()
 
     def train(self, inputs: n.ndarray, expected_outputs: List[n.ndarray], epochs: int, batch_size: int,
               learning_rate: float, test_inputs: n.ndarray = None, test_outputs: n.ndarray = None) -> None:
@@ -76,17 +76,17 @@ class Network:
 
     def __update_weights_and_biases(self, batch_gradient: NetworkGradient, learning_rate: float) -> None:
         """Update the network's weights and biases using the ``batch_gradient``."""
-        self.weights = [layer_weights - (learning_rate * layer_weight_gradient)
-                        for layer_weights, layer_weight_gradient in zip(self.weights, batch_gradient.weights)]
-        self.biases = [layer_biases - (learning_rate * layer_biases_gradient)
-                       for layer_biases, layer_biases_gradient in zip(self.biases, batch_gradient.biases)]
+        self.__weights = [layer_weights - (learning_rate * layer_weight_gradient)
+                          for layer_weights, layer_weight_gradient in zip(self.__weights, batch_gradient.weights)]
+        self.__biases = [layer_biases - (learning_rate * layer_biases_gradient)
+                         for layer_biases, layer_biases_gradient in zip(self.__biases, batch_gradient.biases)]
 
     def __calculate_neuron_inputs_and_activations(self, inputs: n.ndarray) -> (List[n.ndarray], List[n.ndarray]):
         """Calculates the inputs and activations of each neuron in the network for the given ``inputs``."""
         neuron_inputs = []
         neuron_activations = [inputs]
 
-        for layer_biases, layer_weights in zip(self.biases, self.weights):
+        for layer_biases, layer_weights in zip(self.__biases, self.__weights):
             previous_layer_activations = neuron_activations[-1]
             current_layer_inputs = n.dot(layer_weights, previous_layer_activations) + layer_biases
             neuron_inputs.append(current_layer_inputs)
@@ -99,8 +99,8 @@ class Network:
     def __calculate_batch_gradient(self, batch: List[Sample]) -> NetworkGradient:
         """Calculates the network's total gradient for the current ``batch``."""
         batch_gradient = NetworkGradient(
-            [n.zeros(biases.shape) for biases in self.biases],
-            [n.zeros(weights.shape) for weights in self.weights]
+            [n.zeros(biases.shape) for biases in self.__biases],
+            [n.zeros(weights.shape) for weights in self.__weights]
         )
 
         for sample in batch:
@@ -129,7 +129,7 @@ class Network:
         weight_gradients.append(output_layer_weight_gradient)
 
         # We calculate the bias and weight gradients for the hidden layers, starting from the final hidden layer.
-        for hidden_layer_idx in range(-2, -len(self.dimensions), -1):
+        for hidden_layer_idx in range(-2, -len(self.__dimensions), -1):
             hidden_layer_bias_gradient = self.__hidden_layer_bias_gradient(
                 hidden_layer_idx, bias_gradients[hidden_layer_idx + 1], neuron_inputs
             )
@@ -144,7 +144,7 @@ class Network:
     def __output_layer_bias_gradient(self, neuron_activations: List[n.ndarray], expected_outputs: n.ndarray,
                                      neuron_inputs: List[n.ndarray]) -> n.ndarray:
         """The rate of change in the overall network cost for a change in the output layer's biases."""
-        return self.cost_function.output_layer_bias_gradient(
+        return self.__cost_function.output_layer_bias_gradient(
             neuron_activations[OUTPUT_LAYER_IDX], expected_outputs, neuron_inputs[OUTPUT_LAYER_IDX])
 
     def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: n.ndarray,
@@ -152,7 +152,7 @@ class Network:
         """The rate of change in the next layer's cost for a change in this layer's biases."""
 
         # The rate of change in the next layer's cost for a change in this layer's activations.
-        next_layer_weights = self.weights[layer_idx + 1].transpose()
+        next_layer_weights = self.__weights[layer_idx + 1].transpose()
         cost_delta = n.dot(next_layer_weights, next_layer_bias_gradient)
 
         # The rate of change in the layer's activations for a change in the inputs.
