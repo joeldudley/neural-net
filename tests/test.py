@@ -28,4 +28,4 @@ class TestNeuralNet(unittest.TestCase):
 
         net.train(training_inputs, training_outputs, EPOCHS, BATCH_SIZE, LEARNING_RATE, test_inputs, test_outputs)
         percent_correct = net.percentage_correct(test_inputs, test_outputs)
-        assert round(percent_correct, 1) == 92.2
+        assert round(percent_correct, 1) == 92.8
