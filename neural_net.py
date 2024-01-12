@@ -1,6 +1,7 @@
 from typing import List
 
 import numpy as n
+from numpy import ndarray
 
 from cost_function import CrossEntropyCostFunction
 from data_classes import Sample, NetworkGradient
@@ -12,25 +13,13 @@ OUTPUT_LAYER_IDX = -1  # The index of the output layer in the network's layers.
 class Network:
 
     def __init__(self, dimensions: List[int]) -> None:
-        """Initialises the network's biases and weights randomly. The random values are drawn from the Gaussian
-        distribution with mean 0 and variance 1. The biases are a list of ndarrays of dimensions [size(layer) x 1]. The
-        weights are a list of ndarrays of dimensions [size(layer) x size(layer-1)].
-
-          dimensions
-            The size of each network layer in order, including both the input and output layers."""
         self.__dimensions = dimensions
-
-        dimensions_excluding_inputs = dimensions[1:]
-        dimensions_excluding_outputs = dimensions[:-1]
-
-        self.__biases = [n.random.randn(layer_size, 1) for layer_size in dimensions_excluding_inputs]
-        self.__weights = [n.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
-                          zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
-
+        self.__biases = self.__get_random_biases(dimensions)
+        self.__weights = self.__get_random_weights(dimensions)
         self.__cost_function = CrossEntropyCostFunction()
 
-    def train(self, inputs: n.ndarray, expected_outputs: List[n.ndarray], epochs: int, batch_size: int,
-              learning_rate: float, test_inputs: n.ndarray = None, test_outputs: n.ndarray = None) -> None:
+    def train(self, inputs: ndarray, expected_outputs: List[ndarray], epochs: int, batch_size: int,
+              learning_rate: float, test_inputs: ndarray = None, test_outputs: ndarray = None) -> None:
         """Train the network's biases and weights using gradient descent."""
         samples = [Sample(input_, output) for input_, output in zip(inputs, expected_outputs)]
         test_samples = [Sample(input_, output) for input_, output in zip(test_inputs, test_outputs)]
@@ -49,14 +38,14 @@ class Network:
             else:
                 print("Epoch {0} of {1} complete.".format(epoch + 1, epochs))
 
-    def classify(self, inputs: n.ndarray) -> n.ndarray:
+    def classify(self, inputs: ndarray) -> ndarray:
         """Feeds the ``inputs`` to the network and returns the predicted output (i.e. the output neuron with the
         greatest activation)."""
         neuron_inputs, neuron_activations = self.__calculate_neuron_inputs_and_activations(inputs)
         output_layer_activations = neuron_activations[OUTPUT_LAYER_IDX]
         return n.argmax(output_layer_activations)
 
-    def percentage_correct(self, test_inputs: n.ndarray, test_outputs: n.ndarray) -> float:
+    def percentage_correct(self, test_inputs: ndarray, test_outputs: ndarray) -> float:
         """Returns the percentage of ``test_data`` that is correctly classified by the network."""
         test_samples = [Sample(input_, output) for input_, output in zip(test_inputs, test_outputs)]
         test_predictions = [(self.classify(sample.inputs), sample.expected_outputs) for sample in test_samples]
@@ -81,7 +70,7 @@ class Network:
         self.__biases = [layer_biases - (learning_rate * layer_biases_gradient)
                          for layer_biases, layer_biases_gradient in zip(self.__biases, batch_gradient.biases)]
 
-    def __calculate_neuron_inputs_and_activations(self, inputs: n.ndarray) -> (List[n.ndarray], List[n.ndarray]):
+    def __calculate_neuron_inputs_and_activations(self, inputs: ndarray) -> (List[ndarray], List[ndarray]):
         """Calculates the inputs and activations of each neuron in the network for the given ``inputs``."""
         neuron_inputs = []
         neuron_activations = [inputs]
@@ -141,14 +130,14 @@ class Network:
 
         return NetworkGradient(bias_gradients, weight_gradients)
 
-    def __output_layer_bias_gradient(self, neuron_activations: List[n.ndarray], expected_outputs: n.ndarray,
-                                     neuron_inputs: List[n.ndarray]) -> n.ndarray:
+    def __output_layer_bias_gradient(self, neuron_activations: List[ndarray], expected_outputs: ndarray,
+                                     neuron_inputs: List[ndarray]) -> ndarray:
         """The rate of change in the overall network cost for a change in the output layer's biases."""
         return self.__cost_function.output_layer_bias_gradient(
             neuron_activations[OUTPUT_LAYER_IDX], expected_outputs, neuron_inputs[OUTPUT_LAYER_IDX])
 
-    def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: n.ndarray,
-                                     neuron_inputs: List[n.ndarray]):
+    def __hidden_layer_bias_gradient(self, layer_idx: int, next_layer_bias_gradient: ndarray,
+                                     neuron_inputs: List[ndarray]):
         """The rate of change in the next layer's cost for a change in this layer's biases."""
 
         # The rate of change in the next layer's cost for a change in this layer's activations.
@@ -161,8 +150,22 @@ class Network:
         return cost_delta * activation_delta
 
     @staticmethod
-    def __layer_weight_gradient(layer_idx: int, bias_gradient: n.ndarray,
-                                neuron_activations: List[n.ndarray]) -> n.ndarray:
+    def __get_random_biases(dimensions: list[int]):
+        """Generates random biases for the network based on the network's ``dimensions``."""
+        dimensions_excluding_inputs = dimensions[1:]
+        return [n.random.randn(layer_size, 1) for layer_size in dimensions_excluding_inputs]
+
+    @staticmethod
+    def __get_random_weights(dimensions: list[int]):
+        """Generates random weights for the network based on the network's ``dimensions``."""
+        dimensions_excluding_inputs = dimensions[1:]
+        dimensions_excluding_outputs = dimensions[:-1]
+        return [n.random.randn(to_layer_size, from_layer_size) for from_layer_size, to_layer_size in
+                zip(dimensions_excluding_outputs, dimensions_excluding_inputs)]
+
+    @staticmethod
+    def __layer_weight_gradient(layer_idx: int, bias_gradient: ndarray,
+                                neuron_activations: List[ndarray]) -> ndarray:
         """The rate of change in the next layer's cost for a change in this layer's weights."""
         previous_layer_activations = neuron_activations[layer_idx - 1].transpose()
         return n.dot(bias_gradient, previous_layer_activations)
