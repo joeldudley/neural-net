@@ -25,8 +25,10 @@ class MnistLoader:
         Several changes have been made to the original MNIST data: the original image pixel values have been divided by
         256 to create a darkness percentage; and the training labels have been vectorised."""
         training_outputs, validation_outputs = self.__read_labels(TRAINING_LABELS_FILE, validation_set_size)
+        print("Loading training and validation images...")
         training_inputs, validation_inputs = self.__read_images(TRAINING_IMAGES_FILE, validation_set_size)
         test_outputs, _ = self.__read_labels(TEST_LABELS_FILE, 0)
+        print("Loading test images...")
         test_inputs, _ = self.__read_images(TEST_IMAGES_FILE, 0)
         vectorised_training_outputs = [self.__vectorise_label(y) for y in training_outputs]
 
@@ -74,7 +76,6 @@ class MnistLoader:
             num_pixels = num_rows * num_cols
 
             for i in range(num_items - validation_set_size):
-                print(i)  # todo - remove
                 main_images.append(self.__read_image(f, num_pixels))
 
             for i in range(num_items - validation_set_size, num_items):
